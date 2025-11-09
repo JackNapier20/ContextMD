@@ -1,0 +1,58 @@
+[
+  {
+    "protocol_id": "ng180",
+    "title": "NICE NG180: Perioperative Care in Adults",
+    "source": "NICE",
+    "url": "https://www.nice.org.uk/guidance/ng180",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "ng24",
+    "title": "NICE NG24: Blood Transfusion",
+    "source": "NICE",
+    "url": "https://www.nice.org.uk/guidance/ng24",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "ng51",
+    "title": "NICE NG51: Sepsis - Recognition, Diagnosis and Early Management",
+    "source": "NICE",
+    "url": "https://www.nice.org.uk/guidance/ng51",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "cg174",
+    "title": "NICE CG174: Intravenous Fluid Therapy in Adults in Hospital",
+    "source": "NICE",
+    "url": "https://www.nice.org.uk/guidance/cg174",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "acls-cardiac-arrest",
+    "title": "ACLS Adult Cardiac Arrest Algorithm",
+    "source": "AHA",
+    "url": "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "acls-bradycardia",
+    "title": "ACLS Bradycardia Algorithm",
+    "source": "AHA",
+    "url": "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines",
+    "chunk_id": 0,
+    "total_chunks": 1
+  },
+  {
+    "protocol_id": "acls-tachycardia",
+    "title": "ACLS Tachycardia Algorithm",
+    "source": "AHA",
+    "url": "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines",
+    "chunk_id": 0,
+    "total_chunks": 1
+  }
+]
