@@ -1,4 +1,3 @@
-# app.py
 """
 Pre-Op Research Lookup Tool
 Medical-grade professional interface
@@ -6,6 +5,37 @@ Medical-grade professional interface
 
 import streamlit as st
 from datetime import datetime
+import requests
+import json
+import os
+
+# --- Clear any persisted state on reload ---
+for _k in ("case_path", "generation_output", "search_results"):
+    if _k in st.session_state:
+        st.session_state.pop(_k, None)
+
+# --- Ensure text inputs are readable (black text on white bg) ---
+st.markdown(
+    """
+    <style>
+    textarea, input, .stTextArea textarea, .stTextInput input {
+        color: #111 !important;
+        background-color: #fff !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Backend configuration (override with env var BACKEND_URL if needed)
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+
+def backend_alive() -> bool:
+    try:
+        r = requests.get(f"{BACKEND_URL}/health", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
 
 # ============================================================
 # PAGE CONFIG
@@ -298,58 +328,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # ============================================================
-# SIDEBAR - Patient Info
+# SIDEBAR - System Status
 # ============================================================
 with st.sidebar:
-    st.markdown("### PATIENT INFORMATION")
-    st.markdown("---")
-    
-    st.text_input("Patient ID", value="12345", disabled=True)
-    st.text_input("Name", value="Smith, Jane", disabled=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_input("Age", value="65", disabled=True)
-    with col2:
-        st.text_input("Sex", value="F", disabled=True)
-    
-    st.text_input("Weight", value="70 kg", disabled=True)
-    
-    st.markdown("---")
-    st.markdown("### PLANNED PROCEDURE")
-    
-    st.text_area(
-        "Procedure",
-        value="Laparoscopic Cholecystectomy",
-        height=80,
-        disabled=True
-    )
-    
-    st.date_input("Surgery Date", datetime.now())
-    st.text_input("Surgeon", value="Dr. Smith", disabled=True)
-    
-    st.markdown("---")
-    st.markdown("### MEDICAL HISTORY")
-    
-    st.multiselect(
-        "Comorbidities",
-        ["Hypertension", "Type 2 Diabetes", "GERD", "Hypothyroidism"],
-        default=["Hypertension", "Type 2 Diabetes"],
-        disabled=True
-    )
-    
-    st.text_input("Allergies", value="Penicillin", disabled=True)
-    st.selectbox("ASA Class", ["I", "II", "III", "IV", "V"], index=1, disabled=True)
-    
-    st.markdown("---")
     st.markdown("### SYSTEM STATUS")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Protocols", "10")
-    with col2:
-        st.metric("Status", "Ready")
+    st.markdown("---")
+    ok = backend_alive()
+    st.metric("Backend", "Online" if ok else "Offline")
 
 # ============================================================
 # MAIN HEADER
@@ -359,205 +346,90 @@ st.markdown('<p class="subtitle">Evidence-based protocol lookup for surgical pla
 
 st.markdown("---")
 
-# ============================================================
-# PATIENT OVERVIEW CARD
-# ============================================================
-st.markdown('<div class="section-header">PATIENT OVERVIEW</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<div class="patient-card">
-    <h3>Jane Smith, 65F</h3>
-    <p><strong>Procedure:</strong> Laparoscopic Cholecystectomy</p>
-    <p><strong>ASA Class:</strong> II</p>
-    <p><strong>Comorbidities:</strong> Hypertension, Type 2 Diabetes</p>
-    <p><strong>Allergies:</strong> Penicillin</p>
-    <p><strong>Weight:</strong> 70 kg</p>
-</div>
-""", unsafe_allow_html=True)
 
 # ============================================================
-# SEARCH SECTION
+# CASE INPUTS
 # ============================================================
-st.markdown('<div class="section-header">RESEARCH QUERY</div>', unsafe_allow_html=True)
-
-# Search input
-col1, col2 = st.columns([5, 1])
-
-with col1:
+st.markdown('<div class="section-header">CASE INPUTS</div>', unsafe_allow_html=True)
+with st.form("case_form", clear_on_submit=False):
     query = st.text_input(
-        "Research Question",
-        placeholder="What preoperative tests are required for this patient?",
-        label_visibility="collapsed"
+        "Clinical question / case focus",
+        placeholder="e.g., lung cancer with EGFR mutation; confirm testing & first-line options",
     )
-
-with col2:
-    search_button = st.button("SEARCH", type="primary", use_container_width=True)
-
-# ============================================================
-# EXAMPLE QUERIES
-# ============================================================
-with st.expander("COMMON QUESTIONS", expanded=True):
-    examples = [
-        "What preoperative tests are required for ASA II patients?",
-        "What are the fasting guidelines for elective surgery?",
-        "Should beta-blockers be continued perioperatively?",
-        "What VTE prophylaxis is recommended?",
-        "What are the antibiotic prophylaxis guidelines?",
-        "How should diabetes medications be managed preoperatively?",
-        "What preoperative optimization is needed?",
-        "What consent and patient education is required?"
-    ]
-    
-    col1, col2 = st.columns(2)
-    
-    for i, example in enumerate(examples):
-        with col1 if i % 2 == 0 else col2:
-            st.button(example, key=f"ex_{i}", use_container_width=True)
-
-st.markdown("---")
+    colA, colB = st.columns([1,1])
+    with colA:
+        age = st.number_input("Age", min_value=0, max_value=120, value=0, step=1)
+    with colB:
+        sex = st.selectbox("Sex", options=["", "female", "male", "other"], index=0)
+    complaint = st.text_area("Chief complaint", placeholder="e.g., persistent cough")
+    history = st.text_area("History", placeholder="e.g., former smoker")
+    meds = st.text_area("Medications", placeholder="e.g., metformin")
+    labs = st.text_area("Labs", placeholder="e.g., normal CBC")
+    vitals = st.text_area("Vitals", placeholder="e.g., stable")
+    search_button = st.form_submit_button("Search & Generate", type="primary")
 
 # ============================================================
-# RESULTS PLACEHOLDER
+# BACKEND INTEGRATION - SEARCH & GENERATE
 # ============================================================
-if search_button and query:
-    st.markdown('<div class="section-header">SEARCH RESULTS</div>', unsafe_allow_html=True)
-    
-    # Mock result 1
-    with st.expander("NICE NG45 | Routine Preoperative Tests (95% match)", expanded=True):
-        col1, col2, col3 = st.columns([3, 1, 1])
-        
-        with col1:
-            st.markdown("**Source:** NICE Guidelines")
-            st.markdown("**Protocol ID:** NG45")
-        
-        with col2:
-            st.metric("Relevance", "95%")
-        
-        with col3:
-            st.markdown('<span class="tag tag-green">Highly Relevant</span>', unsafe_allow_html=True)
-        
-        st.markdown("**URL:** https://www.nice.org.uk/guidance/ng45")
-        
-        st.markdown("---")
-        
-        st.markdown("**RELEVANT CONTENT**")
-        st.info("""
-For ASA Class II patients undergoing intermediate surgery:
+if search_button:
+    if not query:
+        st.warning("Please enter a research question")
+    else:
+        # Show loading state
+        with st.spinner("Searching and generating recommendations..."):
+            try:
+                # One-shot: create case and generate in the backend
+                patient_payload = {
+                    "age": str(age) if age else None,
+                    "sex": sex or None,
+                    "complaint": complaint or None,
+                    "history": history or None,
+                    "meds": meds or None,
+                    "labs": labs or None,
+                    "vitals": vitals or None,
+                }
 
-- Full Blood Count (FBC): Consider based on clinical assessment
-- Renal Function: Recommended for patients with diabetes or hypertension  
-- ECG: Recommended for patients >65 years or with cardiovascular risk factors
-- Chest X-ray: Not routinely recommended unless specific clinical indication
-- Blood glucose: Check in diabetic patients
+                run_payload = {
+                    "patient": patient_payload,
+                    "query": query,
+                    "topk": 20,
+                }
 
-[Placeholder - actual content will come from RAG system]
-        """)
-    
-    # Mock result 2
-    with st.expander("WHO Surgical Safety Guidelines (78% match)"):
-        col1, col2, col3 = st.columns([3, 1, 1])
-        
-        with col1:
-            st.markdown("**Source:** WHO")
-            st.markdown("**Protocol ID:** Safe Surgery 2009")
-        
-        with col2:
-            st.metric("Relevance", "78%")
-        
-        with col3:
-            st.markdown('<span class="tag tag-yellow">Relevant</span>', unsafe_allow_html=True)
-        
-        st.markdown("**URL:** https://www.who.int/...")
-        
-        st.markdown("---")
-        
-        st.info("[Placeholder content from WHO guidelines]")
-    
-    # Mock result 3
-    with st.expander("AHA Perioperative Guidelines (65% match)"):
-        col1, col2, col3 = st.columns([3, 1, 1])
-        
-        with col1:
-            st.markdown("**Source:** American Heart Association")
-        
-        with col2:
-            st.metric("Relevance", "65%")
-        
-        with col3:
-            st.markdown('<span class="tag">Somewhat Relevant</span>', unsafe_allow_html=True)
-        
-        st.info("[Placeholder content from AHA]")
-    
+                run_resp = requests.post(
+                    f"{BACKEND_URL}/api/run",
+                    json=run_payload,
+                    timeout=60,
+                )
+                run_resp.raise_for_status()
+                run_data = run_resp.json()
+
+                st.session_state.case_path = run_data.get("case_path")
+                st.session_state.generation_output = run_data.get("preview")
+                st.session_state.search_results = {"case_path": st.session_state.case_path}
+            except requests.exceptions.ConnectionError:
+                st.error(f"❌ Cannot connect to backend at {BACKEND_URL}. Make sure the FastAPI server is running and CORS allows this origin.")
+            except requests.exceptions.Timeout:
+                st.error("❌ Backend request timed out. Please try again.")
+            except requests.exceptions.HTTPError as e:
+                st.error(f"❌ Backend error: {e.response.status_code} - {e.response.text}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+# ============================================================
+# RESULTS DISPLAY
+# ============================================================
+gen_out = st.session_state.get("generation_output")
+case_path = st.session_state.get("case_path")
+
+if gen_out:
+    st.markdown('<div class="section-header">SEARCH RESULTS & RECOMMENDATIONS</div>', unsafe_allow_html=True)
+    st.markdown(gen_out)
     st.markdown("---")
-    
-    # Placeholder for synthesis
-    st.markdown('<div class="section-header">SYNTHESIZED RECOMMENDATIONS</div>', unsafe_allow_html=True)
-    
-    st.info("""
-**Key Recommendations for this Patient:**
-
-[AI analysis will appear here once Claude integration is added]
-
-Based on retrieved guidelines:
-- Recommendation 1
-- Recommendation 2  
-- Recommendation 3
-    """)
-    
-    st.markdown("---")
-    
-    # Metadata
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.caption("**Sources:** NICE, WHO, AHA")
-    with col2:
-        st.caption("**Query Time:** 0.089s")
-    with col3:
-        st.caption("**Timestamp:** " + datetime.now().strftime('%H:%M:%S'))
-
-elif search_button and not query:
-    st.warning("Please enter a research question")
-
-# ============================================================
-# DEFAULT VIEW
-# ============================================================
+    if case_path:
+        st.caption(f"**Case:** {case_path}")
+    st.caption(f"**Generated:** {datetime.now().strftime('%H:%M:%S')}")
 else:
-    st.markdown('<div class="section-header">HOW IT WORKS</div>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("### 1. REVIEW")
-        st.markdown("Check patient demographics and planned procedure")
-    
-    with col2:
-        st.markdown("### 2. QUERY")
-        st.markdown("Enter your research question or select an example")
-    
-    with col3:
-        st.markdown("### 3. ANALYZE")
-        st.markdown("Receive evidence-based protocol recommendations")
-    
-    st.markdown("---")
-    
-    st.markdown('<div class="section-header">CAPABILITIES</div>', unsafe_allow_html=True)
-    
-    capabilities = [
-        ("Protocol Search", "Search across NICE, WHO, and medical society guidelines"),
-        ("Patient Context", "Results tailored to demographics and procedure type"),
-        ("Fast Retrieval", "Sub-second search across protocol database"),
-        ("Evidence-Based", "All recommendations backed by authoritative sources"),
-        ("Transparent Sources", "View source documents and relevance scores"),
-        ("Comprehensive Coverage", "Testing, optimization, consent, and planning")
-    ]
-    
-    col1, col2 = st.columns(2)
-    
-    for i, (title, desc) in enumerate(capabilities):
-        with col1 if i % 2 == 0 else col2:
-            st.markdown(f"**{title}**")
-            st.caption(desc)
-            st.markdown("")
+    st.info("Enter a research question and click SEARCH to get started")
 
 # ============================================================
 # FOOTER
@@ -570,7 +442,7 @@ with footer_col1:
     st.caption("Pre-Op Research Assistant v1.0")
 
 with footer_col2:
-    st.caption("NICE • WHO • AHA")
+    st.caption("Powered by Claude AI + FAISS")
 
 with footer_col3:
     st.caption(f"© {datetime.now().year}")
