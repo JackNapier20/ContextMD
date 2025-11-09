@@ -1,0 +1,37 @@
+You are assisting with a *case briefing*.
+Summarize key differentials, relevant workup, and management *options* using the references.
+Do NOT provide medical advice or definitive diagnosis. Cite sources by [#].
+
+
+PATIENT CASE:
+- Age: 67
+- Sex: female
+- Chief complaint: persistent cough
+- History: former smoker
+- Medications: metformin
+- Vitals: stable
+- Labs: normal CBC
+
+REFERENCES (top matches):
+
+[1] PMID 32445082 (score=0.758): Utilisation and Determinants of Epidermal Growth Factor Receptor Mutation Testing in Patients with Non-small Cell Lung Cancer in Routine Clinical Practice: A Global Systematic Review.
+BACKGROUND: Epidermal growth factor receptor (EGFR) mutation testing is recommended for selecting patients with non-squamous non-small cell lung cancer (NSCLC) for EGFR tyrosine kinase inhibitor drug treatment. OBJECTIVE: The objective of this article was to systematically review available evidence on the utilisation and determinants of EGFR mutation testing of patients with NSCLC in routine clinical practice. PATIENTS AND METHODS: Searches were made of five electronic databases (Web of Science, MEDLINE [Ovid], Science Direct, EMBASE and Scopus), bibliographies of relevant articles, studies th...
+
+[2] PMID 34500194 (score=0.757): The expanding capability and clinical relevance of molecular diagnostic technology to identify and evaluate EGFR mutations in advanced/metastatic NSCLC.
+Epidermal growth factor receptor (EGFR) mutation testing in advanced non-small-cell lung cancer (NSCLC) has evolved rapidly over the past decade, largely triggered by the introduction of the targeted EGFR tyrosine kinase inhibitors (TKIs). Initially used to detect common EGFR mutations and determine the most appropriate first-line therapy at diagnosis, testing methodologies have expanded to test for multiple mutations at multiple time points throughout the disease course. Here we review the current mutation testing approaches, including types of biopsies, and the available assays commonly used...
+
+[3] PMID 33380864 (score=0.757): Consensus recommendations for optimizing biomarker testing to identify and treat advanced EGFR-mutated non-small-cell lung cancer.
+The advent of personalized therapy for non-small-cell lung carcinoma (nsclc) has improved patient outcomes. Selection of appropriate targeted therapy for patients with nsclc now involves testing for multiple biomarkers, including EGFR. EGFR mutation status is required to optimally treat patients with nsclc, and thus timely and accurate biomarker testing is necessary. However, in Canada, there are currently no standardized processes or methods in place to ensure consistent testing implementation. That lack creates challenges in ensuring that all appropriate biomarkers are tested for each patien...
+
+[4] PMID 33973139 (score=0.753): Application of the conventional and novel methods in testing EGFR variants for NSCLC patients in the last 10 years through different regions: a systematic review.
+Variants in the epidermal growth factor receptor (EGFR) gene are recognized as predictors of therapy response and are correlated with progression-free and overall survival in non-small cell lung cancer (NSCLC) patients. Molecularly guided therapy needs precise and cost-effective molecular tests. This review focused primarily on screening or target methods for the EGFR variants detection with diagnostic and prognostic potential in the clinical research published papers. Concerning the inclusion and exclusion criteria, the search interval comprised available articles published from 2010 until 20...
+
+[5] PMID 33690091 (score=0.750): The evolving landscape of biomarker testing for non-small cell lung cancer in Europe.
+The discovery of oncogenic driver mutations rendering non-small cell lung cancer (NSCLC) targetable by small-molecule inhibitors, and the development of immunotherapies, have revolutionised NSCLC treatment. Today, instead of non-selective chemotherapies, all patients with advanced NSCLC eligible for treatment (and increasing numbers with earlier, less extensive disease) require fast and comprehensive screening of biomarkers for first-line patient selection for targeted therapy, chemotherapy, or immunotherapy (with or without chemotherapy). To avoid unnecessary re-biopsies, biomarker screening ...
+
+RESPONSE FORMAT:
+- Ranked differentials + reasoning [#]
+- Key tests to confirm/triage [#]
+- Red flags / escalation triggers
+- Management options with rationale [#]
+- Final concise 3–5 sentence briefing

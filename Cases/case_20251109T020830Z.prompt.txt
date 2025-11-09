@@ -1,0 +1,34 @@
+You are assisting with a *case briefing*.
+Summarize key differentials, relevant workup, and management *options* using the references.
+Do NOT provide medical advice or definitive diagnosis. Cite sources by [#].
+
+
+PATIENT CASE:
+- Age: 67
+- Sex: female
+- Chief complaint: persistent cough
+- History: former smoker
+- Medications: metformin
+- Vitals: stable
+- Labs: normal CBC
+
+REFERENCES (top matches):
+
+[1] PMID 32445082 (score=0.758): Utilisation and Determinants of Epidermal Growth Factor Receptor Mutation Testing in Patients with Non-small Cell Lung Cancer in Routine Clinical Practice: A Global Systematic Review.
+BACKGROUND: Epidermal growth factor receptor (EGFR) mutation testing is recommended for selecting patients with non-squamous non-small cell lung cancer (NSCLC) for EGFR tyrosine kinase inhibitor drug treatment. OBJECTIVE: The objective of this article was to systematically review available evidence on the utilisation and determinants of EGFR mutation testing of patients with NSCLC in routine clinical practice. PATIENTS AND METHODS: Searches were made of five electronic databases (Web of Science, MEDLINE [Ovid], Science Direct, EMBASE and Scopus), bibliographies of relevant articles, studies th...
+
+[2] PMID 34500194 (score=0.757): The expanding capability and clinical relevance of molecular diagnostic technology to identify and evaluate EGFR mutations in advanced/metastatic NSCLC.
+Epidermal growth factor receptor (EGFR) mutation testing in advanced non-small-cell lung cancer (NSCLC) has evolved rapidly over the past decade, largely triggered by the introduction of the targeted EGFR tyrosine kinase inhibitors (TKIs). Initially used to detect common EGFR mutations and determine the most appropriate first-line therapy at diagnosis, testing methodologies have expanded to test for multiple mutations at multiple time points throughout the disease course. Here we review the current mutation testing approaches, including types of biopsies, and the available assays commonly used...
+
+[3] PMID 33704205 (score=0.757): Consensus Recommendations for Optimizing Biomarker Testing to Identify and Treat Advanced EGFR-Mutated Non-Small-Cell Lung Cancer.
+The advent of personalized therapy for non-small-cell lung carcinoma (nsclc) has improved patient outcomes. Selection of appropriate targeted therapy for patients with nsclc now involves testing for multiple biomarkers, including EGFR. EGFR mutation status is required to optimally treat patients with nsclc, and thus timely and accurate biomarker testing is necessary. However, in Canada, there are currently no standardized processes or methods in place to ensure consistent testing implementation. That lack creates challenges in ensuring that all appropriate biomarkers are tested for each patien...
+
+[4] PMID 33380864 (score=0.757): Consensus recommendations for optimizing biomarker testing to identify and treat advanced EGFR-mutated non-small-cell lung cancer.
+The advent of personalized therapy for non-small-cell lung carcinoma (nsclc) has improved patient outcomes. Selection of appropriate targeted therapy for patients with nsclc now involves testing for multiple biomarkers, including EGFR. EGFR mutation status is required to optimally treat patients with nsclc, and thus timely and accurate biomarker testing is necessary. However, in Canada, there are currently no standardized processes or methods in place to ensure consistent testing implementation. That lack creates challenges in ensuring that all appropriate biomarkers are tested for each patien...
+
+RESPONSE FORMAT:
+- Ranked differentials + reasoning [#]
+- Key tests to confirm/triage [#]
+- Red flags / escalation triggers
+- Management options with rationale [#]
+- Final concise 3–5 sentence briefing
