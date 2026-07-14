@@ -1,420 +1,152 @@
 # ContextMD
 
-**Evidence-based surgical planning assistant powered by semantic PubMed search and Claude AI.**
+**Semantic PubMed retrieval + LLM synthesis for clinical case briefings — a full-stack RAG system with a rigorous evaluation suite.**
 
-ContextMD is a Retrieval-Augmented Generation (RAG) system that helps clinicians quickly surface relevant medical literature for pre- and post-operative case planning. Given a patient profile and a clinical question, it retrieves semantically matched PubMed abstracts using a biomedical embedding model and synthesizes actionable insights via Claude.
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.121-009688?logo=fastapi&logoColor=white)
+![FAISS](https://img.shields.io/badge/FAISS-IVF--Flat-4B8BBE)
+![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
----
+> Built as a hackathon project: an end-to-end retrieval-augmented pipeline that turns a clinical question + patient profile into an evidence-grounded, citation-backed briefing over 7.3M PubMed abstracts.
 
-## Demo
+## Overview
 
-![ContextMD UI](https://user-images.githubusercontent.com/placeholder/contextmd-demo.png)
+Clinicians researching a case must sift through thousands of PubMed abstracts to find the few that matter. ContextMD does the retrieval and first-pass synthesis: it embeds the clinical question with a **biomedical** encoder (MedCPT), runs approximate nearest-neighbor search over a **7.3M-vector FAISS index**, and asks Claude to summarize the top abstracts into a structured briefing with numbered citations. The interesting parts are engineering the retrieval to be both accurate and fast on commodity hardware (a 21 GB index memory-mapped on a 24 GB machine), and building a **multi-method evaluation suite** that measures retrieval quality, generation faithfulness, citation accuracy, and safety-guardrail compliance — not just vibes.
 
-> _Enter a clinical query, optionally fill in patient demographics, and receive an evidence-grounded synthesis with PubMed citations in seconds._
+## Key Features
 
----
+- **Biomedical semantic search** — MedCPT query encoder + FAISS IVF-Flat over 7.3M PubMed abstract vectors (768-d, cosine via inner product).
+- **Grounded LLM synthesis** — Claude generates a Summary + Insights with `[#]` citations, constrained by prompt to avoid diagnosis/advice.
+- **One-shot orchestration** — a single `POST /api/run` embeds, retrieves, dedupes, generates, and persists a timestamped case bundle.
+- **Tuned approximate search** — `nprobe` sweep shows production settings recover **98% of exact recall at 41 ms/query**; index is mmap'd to run in < RAM.
+- **5-method evaluation suite** — ANN recall vs. exact, pooled gold-set IR metrics, Ragas, ALCE-style citation checks, and LLM-judged safety guardrails.
+- **Full-stack** — FastAPI backend + Streamlit clinical UI + reproducible case persistence (JSON + Markdown).
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    U["Clinician"] -->|"query + patient"| UI["Streamlit UI<br/>client/frontend.py"]
+    UI -->|"POST /api/run"| API["FastAPI backend<br/>server/app.py"]
+    API --> EMB["MedCPT Query Encoder<br/>search.py"]
+    EMB --> FAISS[("FAISS IVF-Flat<br/>7.3M PubMed vectors")]
+    FAISS --> META["Metadata lookup<br/>title + abstract"]
+    META --> GEN["Claude synthesis<br/>generation.py"]
+    GEN -->|"summary + insights + [#] cites"| API
+    API -->|"markdown report"| UI
+    API --> CASE[("Case store<br/>Cases/*.json + *.md")]
+
+    subgraph offline["Offline / one-time"]
+        EMBS["MedCPT embeddings<br/>data/MedCPT/embeds"] --> IDX["indexing.py"] --> FAISS
+    end
 ```
-Client (Streamlit)
-    │  POST /api/run
-    ▼
-FastAPI Backend (server/app.py)
-    ├── embed_query()        ← MedCPT Query Encoder (ncbi/MedCPT-Query-Encoder)
-    ├── FAISS IVF-Flat search ← PubMed vector index (output/pubmed_ivfpq.faiss)
-    ├── metadata lookup      ← pubmed_chunk_*.json (title + abstract)
-    └── call_haiku()         ← Claude 3 Haiku via Anthropic API
+
+**Data flow:** the frontend sends the question + patient fields to `/api/run`. The backend embeds the query (MedCPT), searches FAISS (`nprobe=32`, top-20), dedupes and attaches PubMed metadata, keeps the top-5 abstracts, and prompts Claude for a cited briefing. The index itself is built offline by `indexing.py` from precomputed MedCPT embedding chunks.
+
+## Tech Stack
+
+- **Core:** Python 3.11, FastAPI, Uvicorn, Pydantic, Streamlit
+- **Retrieval / ML:** FAISS (IVF-Flat), MedCPT (`ncbi/MedCPT-Query-Encoder`), PyTorch, Transformers, sentence-transformers, NumPy
+- **LLM:** Anthropic Claude (generation + judging)
+- **Evaluation:** Ragas, custom IR metrics, LLM-as-judge (OpenAI + Claude)
+- **Data:** PubMed abstracts (MedCPT embeddings), orjson
+
+## Results
+
+Measured this repo's actual pipeline; see [`eval/`](eval/) for the scripts and per-run reports.
+
+| Stage | Metric | Score | Method |
+|---|---|---|---|
+| Retrieval | Recall@5 vs. exact (`nprobe=32`) | **0.98** @ 41 ms | ANN sweep, exact scan as ground truth |
+| Retrieval | Recall@20 / MRR | **0.72 / 0.52** | Pooled, Claude-labeled gold set |
+| Generation | Faithfulness / Answer relevancy | **0.84 / 0.86** | Ragas (LLM judge) |
+| Generation | Citation precision / recall | **0.82 / 0.67** | ALCE-style, Claude judge |
+| Safety | Guardrail compliance | **100%** | AspectCritique: no diagnosis/advice, cites sources |
+
+<sub>Samples: 12 queries (retrieval), 1 case (Ragas), 44 reports (citations), 12 reports (safety). Raising `nprobe` 32→64 yields lossless (100%) recall for ~36 ms more.</sub>
+
+## Getting Started
+
+### Prerequisites
+- Conda (recommended) and Python 3.11
+- An Anthropic API key ([console](https://console.anthropic.com/))
+- MedCPT PubMed embedding chunks in `data/MedCPT/{embeds,pmids,pubmed}/` — see [`Setup.md`](Setup.md)
+
+### Installation
+```bash
+git clone https://github.com/JackNapier20/ContextMD.git
+cd ContextMD
+conda env create -f environment.yml   # creates the 'MedicoRAG' env
+conda activate MedicoRAG
 ```
 
-**Data pipeline** (run once):
+### Configuration
+```bash
+cp .env.example .env
+# edit .env and set ANTHROPIC_API_KEY (OPENAI_API_KEY only needed for evals)
 ```
-downloadMedCPT.py  →  data/MedCPT/{embeds,pmids,pubmed}/
-indexing.py        →  output/pubmed_ivfpq.faiss
+
+### Build the index (one-time)
+```bash
+python downloadMedCPT.py   # cache the MedCPT query encoder
+python indexing.py         # build output/pubmed_ivfpq.faiss from embeddings
 ```
 
----
+### Run
+```bash
+# Terminal 1 — backend
+uvicorn server.app:app --host 0.0.0.0 --port 8000 --reload
 
-## Features
+# Terminal 2 — frontend
+streamlit run client/frontend.py       # opens http://localhost:8501
+```
 
-- **Semantic search** over PubMed using [MedCPT](https://huggingface.co/ncbi/MedCPT-Query-Encoder), a biomedical language model trained by NCBI
-- **IVF-Flat FAISS index** for fast approximate nearest-neighbor retrieval at scale
-- **Claude 3 Haiku synthesis** — structured summary + clinical insights with numbered citations
-- **One-shot `/api/run` endpoint** — search + generate in a single HTTP call
-- **Streamlit frontend** with a professional medical UI (navy/teal palette)
-- **Case persistence** — every run saves a timestamped JSON bundle and Markdown report to `Cases/`
-- **Demo mode** — backend starts without an index; useful for frontend development
+### CLI (no server)
+```bash
+python search.py "preoperative cardiac risk in elderly patients" --show_metadata
+python createCase.py "EGFR-mutant NSCLC first-line therapy" --patient "age=58 sex=female"
+python generation.py                    # generate a Claude briefing for the latest case
+```
 
----
+### Evaluation (optional)
+```bash
+python -m pip install -r eval/requirements.txt
+python eval/eval_retrieval_faiss.py     # ANN recall vs exact, nprobe sweep (no API key)
+python ragas_eval.py                    # generation faithfulness/relevancy (needs OPENAI_API_KEY)
+python eval/eval_citations.py           # citation precision/recall (needs ANTHROPIC_API_KEY)
+```
 
 ## Project Structure
 
 ```
 ContextMD/
-├── client/
-│   └── frontend.py          # Streamlit UI
-├── server/
-│   ├── app.py               # FastAPI backend (search, generate, one-shot /api/run)
-│   └── settings.py          # Pydantic settings (paths, nprobe, API key)
-├── data/
-│   └── MedCPT/
-│       ├── embeds/          # Pre-computed PubMed embeddings (.npy, per chunk)
-│       ├── pmids/           # PMID arrays matching embeddings (.json, per chunk)
-│       └── pubmed/          # PubMed metadata: title + abstract (.json, per chunk)
-├── output/
-│   └── pubmed_ivfpq.faiss   # Built FAISS index (generated by indexing.py)
-├── Cases/                   # Auto-created; stores case_<timestamp>.{json,haiku.md}
-├── downloadMedCPT.py        # Download & cache MedCPT model from HuggingFace
-├── indexing.py              # Build FAISS index from MedCPT embeddings
-├── search.py                # Embed query + FAISS search + metadata lookup
-├── generation.py            # Build prompt + call Claude Haiku + save Markdown
-├── createCase.py            # CLI: search → save case bundle (JSON + prompt.txt)
-├── ragas_eval.py            # Generation eval (Ragas: faithfulness/relevancy)
-├── eval/                    # Evaluation suite (see § Evaluation)
-│   ├── eval_retrieval_faiss.py  # ANN recall vs exact, nprobe sweep
-│   ├── build_gold_set.py        # Pool + Claude-label relevance -> gold_set.json
-│   ├── eval_ir_metrics.py       # Recall@k / Precision@k / MRR / nDCG@k
-│   ├── eval_citations.py        # Citation precision / recall (Claude judge)
-│   ├── eval_safety.py           # Guardrail compliance (AspectCritique)
-│   ├── gold_set.json            # Labeled query -> relevant PMIDs
-│   ├── requirements.txt         # Eval-only deps (ragas + langchain pins)
-│   └── results/                 # Timestamped metric reports (JSON/CSV)
-├── environment.yml          # Conda environment (MedicoRAG, Python 3.11)
-└── Setup.md                 # Detailed setup and integration notes
+├── server/app.py         # FastAPI backend: /api/search, /api/cases, /api/generate, /api/run
+├── server/settings.py    # Pydantic settings (paths, nprobe, model, keys)
+├── client/frontend.py    # Streamlit clinical UI
+├── indexing.py           # Build FAISS IVF-Flat index from MedCPT embeddings
+├── search.py             # MedCPT query embedding + FAISS search + metadata lookup
+├── generation.py         # Prompt assembly + Claude call + Markdown report
+├── createCase.py         # CLI: search -> save case bundle (JSON + prompt)
+├── downloadMedCPT.py     # Cache the MedCPT query encoder locally
+├── ragas_eval.py         # Generation eval (Ragas)
+├── eval/                 # Evaluation suite (retrieval, IR, citations, safety) + results/
+├── environment.yml       # Conda env (MedicoRAG, Python 3.11)
+├── data/MedCPT/          # embeds/ pmids/ pubmed/ (chunks 30–37; not committed)
+└── output/               # Built FAISS index + inverted lists
 ```
 
----
-
-## Quickstart
-
-### 1. Create the Conda Environment
-
-```bash
-conda env create -f environment.yml
-conda activate MedicoRAG
-```
-
-### 2. Set Your Anthropic API Key
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-# or add to a .env file:
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-```
-
-### 3. Download the MedCPT Model
-
-```bash
-python downloadMedCPT.py
-```
-
-This downloads [`ncbi/MedCPT-Query-Encoder`](https://huggingface.co/ncbi/MedCPT-Query-Encoder) from HuggingFace into a local cache.
-
-### 4. Build the FAISS Index
-
-Place your MedCPT embedding chunks in `data/MedCPT/` (matching the layout below), then run:
-
-```bash
-python indexing.py
-```
-
-This produces `output/pubmed_ivfpq.faiss`. Expected data layout:
-
-```
-data/MedCPT/
-├── embeds/embeds_chunk_30.npy  ...
-├── pmids/pmids_chunk_30.json   ...
-└── pubmed/pubmed_chunk_30.json ...
-```
-
-### 5. Start the Backend
-
-```bash
-uvicorn server.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 6. Start the Frontend
-
-```bash
-streamlit run client/frontend.py
-```
-
-Open [http://localhost:8501](http://localhost:8501) in your browser.
-
----
-
-## API Reference
-
-All endpoints are served at `http://localhost:8000`.
-
-### `GET /health`
-Returns index load status and metadata size.
-
-```json
-{ "ok": true, "mode": "full", "ntotal": 1234567, "metadata_size": 890000 }
-```
-
-### `POST /api/run` — One-shot search + generate
-
-```bash
-curl -X POST http://localhost:8000/api/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient": {
-      "age": "72", "sex": "female",
-      "complaint": "elective cholecystectomy",
-      "history": "hypertension, type 2 diabetes",
-      "meds": "metformin, lisinopril",
-      "labs": "HbA1c 7.2%, creatinine 1.1"
-    },
-    "query": "preoperative workup for elderly diabetic patient undergoing laparoscopic cholecystectomy",
-    "topk": 20
-  }'
-```
-
-**Response:**
-```json
-{
-  "case_path": "Cases/case_20250601T120000Z.json",
-  "markdown_path": "Cases/case_20250601T120000Z.haiku.md",
-  "preview": "## Summary\n...\n## Insights\n...",
-  "hits_saved": 5
-}
-```
-
-### `POST /api/search` — Semantic search only
-
-```bash
-curl -X POST http://localhost:8000/api/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "beta-blocker use in cardiac surgery", "topk": 10}'
-```
-
-### `POST /api/cases` — Save case without generating
-
-### `POST /api/generate` — Generate from an existing case file
-
----
-
-## CLI Usage
-
-### Search and save a case bundle
-
-```bash
-python createCase.py "EGFR-mutant NSCLC first-line therapy" \
-  --patient "age=58 sex=female complaint='persistent cough'" \
-  --topk 20
-```
-
-Outputs `Cases/case_<timestamp>.json` and `Cases/case_<timestamp>.prompt.txt`.
-
-### Generate a Haiku report for the latest case
-
-```bash
-python generation.py
-```
-
-Outputs `Cases/case_<timestamp>.haiku.md`.
-
-### Run a standalone search
-
-```bash
-python search.py "preoperative cardiac risk stratification elderly" \
-  --topk 10 --show_metadata
-```
-
----
-
-## Configuration
-
-Key settings in `server/settings.py` (also configurable via environment variables):
-
-| Setting | Default | Description |
-|---|---|---|
-| `index_path` | `output/pubmed_ivfpq.faiss` | FAISS index location |
-| `data_dir` | `data/MedCPT` | Root for embeddings + metadata |
-| `cases_dir` | `Cases/` | Where case files are saved |
-| `nprobe` | `32` | IVF clusters probed per query (higher = more recall, slower) |
-| `prefer_abstract_topk` | `5` | Max results forwarded to Claude |
-| `anthropic_api_key` | `$ANTHROPIC_API_KEY` | Anthropic API key |
-| `cors_origins` | `["http://localhost:8501"]` | Allowed CORS origins |
-
-Index build parameters in `indexing.py`:
-
-| Parameter | Value | Description |
-|---|---|---|
-| `NLIST` | `8192` | Number of IVF coarse clusters |
-| `TRAIN_VEC_TARGET` | `1,000,000` | Vectors sampled for training |
-| `USE_PQ` | `False` | IVF-Flat (default) vs IVF-PQ |
-| `USE_ONDISK` | `False` | Keep inverted lists in RAM |
-
----
-
-## How It Works
-
-1. **Indexing** — Pre-computed MedCPT embeddings for PubMed abstracts (chunks 30–37) are loaded, L2-normalized, and added to a FAISS IVF-Flat index keyed by PMID.
-
-2. **Query embedding** — At search time, the clinical question is encoded by the MedCPT Query Encoder using mean-pooled, L2-normalized token representations.
-
-3. **Retrieval** — The query vector is searched against the FAISS index (inner product ≈ cosine similarity). The top-K PMIDs are resolved to titles and abstracts from the local JSON metadata.
-
-4. **Deduplication** — Near-duplicate results (same normalized title or abstract prefix) are collapsed before sending to the LLM.
-
-5. **Generation** — Up to 5 references with non-empty abstracts are assembled into a structured prompt. Claude 3 Haiku returns a **Summary** and **Insights** section with numbered citations. A PubMed URL legend is appended.
-
-6. **Persistence** — Each run saves a timestamped case bundle (patient data + retrieved hits) as JSON and a Markdown report alongside it.
-
----
-
-## Requirements
-
-- Python 3.11
-- Conda (recommended) or pip
-- Anthropic API key ([get one here](https://console.anthropic.com/))
-- MedCPT PubMed embedding chunks (available from [MedCPT on HuggingFace](https://huggingface.co/ncbi/MedCPT-Article-Encoder))
-
-Key dependencies: `faiss-cpu`, `transformers`, `anthropic`, `fastapi`, `streamlit`, `orjson`, `sentence-transformers`
-
----
-
-## Evaluation
-
-ContextMD is a two-stage system (retrieve → generate), so it is evaluated on
-**both** stages with a suite of complementary methods. Each script writes a
-timestamped JSON/CSV report to `eval/results/`.
-
-| Script | Stage | Measures | Judge / labels |
-|---|---|---|---|
-| [`eval/eval_retrieval_faiss.py`](eval/eval_retrieval_faiss.py) | Retrieval | FAISS approximate-vs-exact recall + latency across `nprobe` | none (deterministic) |
-| [`eval/build_gold_set.py`](eval/build_gold_set.py) → [`eval/eval_ir_metrics.py`](eval/eval_ir_metrics.py) | Retrieval | Recall@k, Precision@k, MRR, nDCG@k | Claude-labeled gold set |
-| [`ragas_eval.py`](ragas_eval.py) | Generation | Faithfulness, Answer Relevancy, Context Utilization | OpenAI judge |
-| [`eval/eval_citations.py`](eval/eval_citations.py) | Generation | Citation precision / recall (ALCE-style) | Claude judge |
-| [`eval/eval_safety.py`](eval/eval_safety.py) | Generation | Guardrail compliance (no advice / no diagnosis / cites) | OpenAI judge |
-
-Setup for the LLM-judged evals:
-
-```bash
-python -m pip install -r eval/requirements.txt   # ragas + matched langchain stack
-export OPENAI_API_KEY="sk-..."      # Ragas + safety judge
-export ANTHROPIC_API_KEY="sk-ant-..." # citation + gold-set judge (or use .env)
-```
-
----
-
-### 1. Retrieval — ANN index quality (`eval/eval_retrieval_faiss.py`)
-
-The deployed index is IVF-Flat queried with a fixed `nprobe`, so search is
-*approximate*. This measures how much recall that costs, using the **same index
-at `nprobe = nlist` (a full scan) as exact ground truth** — no labels or LLM
-needed. Twelve realistic clinical queries; 7.3M vectors.
-
-| `nprobe` | Recall@5 | Recall@10 | Mean latency |
-|---|---|---|---|
-| 1 | 0.25 | 0.30 | 10 ms |
-| 4 | 0.87 | 0.84 | 11 ms |
-| 16 | 0.95 | 0.97 | 28 ms |
-| **32 (production)** | **0.98** | **0.98** | **41 ms** |
-| 64 | 1.00 | 1.00 | 77 ms |
-| 128 | 1.00 | 1.00 | 162 ms |
-
-> **Actionable finding:** production `nprobe=32` already recovers 98% of exact
-> results. Raising it to **64 gives lossless (100%) recall for ~36 ms more** —
-> a cheap, safe bump for a clinical tool. Below `nprobe=4`, recall collapses.
-
----
-
-### 2. Retrieval — ranking quality vs. a labeled gold set (`eval/eval_ir_metrics.py`)
-
-Classic IR metrics need relevance labels. `build_gold_set.py` creates them by
-**pooling**: for each query it retrieves a deep pool at high `nprobe`, then
-Claude judges each abstract relevant / not-relevant, saving the labels to
-[`eval/gold_set.json`](eval/gold_set.json). `eval_ir_metrics.py` then scores the
-**production** retrieval (`nprobe=32`) against those labels — deterministically,
-no LLM at eval time.
-
-Results (`nprobe=32`, 7 labeled queries):
-
-| Cutoff | Precision | Recall | nDCG |
-|---|---|---|---|
-| @5 | 0.43 | 0.16 | 0.40 |
-| @10 | 0.40 | 0.28 | 0.40 |
-| @20 | 0.44 | **0.72** | 0.55 |
-
-**MRR = 0.52**
-
-> **How to read this:** these medical queries have **12–18 relevant abstracts
-> each**, so Recall@5 is mechanically capped near ~0.3 — the meaningful signals
-> are **Recall@20 (0.72)** (most relevant evidence is found within 20 hits) and
-> **MRR 0.52 / nDCG@10 0.40** (a relevant hit usually lands in the top 2).
-> _Caveat:_ the gold set is a seed of 8 queries; labels come from the retriever's
-> own pool (recall is relative-to-pool), and queries whose pooled abstracts are
-> empty in the corpus (e.g. atrial fibrillation) are skipped. Expand
-> `gold_set.json` for a stronger benchmark.
-
----
-
-### 3. Generation — faithfulness & relevancy (Ragas, [`ragas_eval.py`](ragas_eval.py))
-
-The eval mirrors the **exact** pipeline I/O: the *question* is the clinical
-`query` that drove retrieval (plus patient context), the *context* is the top-5
-retrieved abstracts, and the *answer* is only the LLM-generated Summary +
-Insights (the auto-appended reference legend is stripped).
-
-```bash
-python ragas_eval.py            # scores the latest case; saves Cases/eval_<ts>.{json,csv}
-```
-
-| Metric | Score | Meaning |
-|---|---|---|
-| Faithfulness | **0.84** | claims grounded in the retrieved abstracts (low hallucination) |
-| Answer Relevancy | **0.86** | answer stays on the clinical question |
-| Context Utilization | **1.00** | retrieved abstracts are actually used |
-
----
-
-### 4. Generation — citation faithfulness (`eval/eval_citations.py`)
-
-ContextMD emits `[#]` citations, so those attributions are verified ALCE-style:
-each `[#]` is mapped back to its source abstract and Claude judges whether the
-abstract supports the claim.
-
-Micro-averaged over **44 saved reports**:
-
-| Metric | Score | |
-|---|---|---|
-| **Citation precision** | **0.82** | 223/273 citations are actually supported by the cited abstract |
-| **Citation recall** | **0.67** | 281/422 substantive claims carry a citation |
-
-> Precision 0.82 means most citations are trustworthy; recall 0.67 shows ~1/3 of
-> claims are stated without a citation — a concrete target for prompt tuning.
-
----
-
-### 5. Safety — guardrail compliance (`eval/eval_safety.py`)
-
-The generation prompt forbids definitive diagnosis and direct medical advice and
-requires citations. A Ragas `AspectCritique` (binary LLM judge) verifies the
-model actually obeys, across 12 reports:
-
-| Guardrail | Compliance |
-|---|---|
-| No definitive diagnosis | **100%** (12/12) |
-| No direct medical advice | **100%** (12/12) |
-| Cites its sources | **100%** (12/12) |
-
-> The three safety constraints hold on every sampled report. Because this is the
-> tool's core safety guarantee, it should be re-run whenever the prompt changes.
-
-_Results above were produced on 2026-07-14; re-running regenerates the reports in `eval/results/`._
-
----
-
-## Disclaimer
-
-ContextMD is a research and productivity tool. It does **not** provide medical advice and is **not** a substitute for clinical judgment. All outputs should be reviewed by a qualified healthcare professional. Citations link to PubMed for source verification.
-
----
+## Roadmap
+
+- **Model configurability** — `generation.py` pins a retired Claude model ID; move it to `settings.py` and default to a current model.
+- **Stronger benchmark** — expand the 8-query gold set and add reference answers to unlock answer-correctness metrics.
+- **Full corpus + compression** — index all PubMed (currently chunks 30–37) and add IVF-PQ to shrink the 21 GB index.
+- **Deployment** — containerize (Docker) and stand up a hosted demo.
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).
+
+---
+
+> **Disclaimer:** ContextMD is a research/productivity prototype. It does **not** provide medical advice or diagnosis and is not a substitute for clinical judgment. All outputs should be verified against the cited PubMed sources by a qualified professional.
