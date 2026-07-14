@@ -1,0 +1,12 @@
+# Evaluation suite dependencies (on top of environment.yml).
+# Ragas 0.1.x needs a matching langchain 0.2.x stack; these versions are known
+# to work together on Python 3.11. Install into the MedicoRAG env:
+#   python -m pip install -r eval/requirements.txt
+ragas==0.1.21
+langchain==0.2.17
+langchain-core==0.2.43
+langchain-community==0.0.38
+langchain-openai==0.1.25
+openai==1.109.1
+datasets==4.8.5
+# anthropic is already provided by environment.yml (used as the citation judge)

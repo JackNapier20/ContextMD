@@ -341,8 +341,8 @@ with st.sidebar:
 # ============================================================
 # MAIN HEADER
 # ============================================================
-st.markdown('<h1 class="main-title">Pre-Operative Research Assistant</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Evidence-based protocol lookup for surgical planning</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">Pre and Post Operative Research Assistant</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Evidence-based protocol lookup for pre and post surgical planning</p>', unsafe_allow_html=True)
 
 st.markdown("---")
 

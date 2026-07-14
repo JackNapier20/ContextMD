@@ -101,7 +101,7 @@ def build_prompt(patient: dict, refs: list) -> str:
     instructions = (
         "You are an assistant for a doctor who helps dealing with research easy. You are given the patient medical data along with some relevant research paper abstracts.\n"
         "Using these, produce:\n"
-        "1) **Summary** — concise, plain-English synthesis tailored to the patient.\n"
+        "1) **Summary** — Give me a summary of the papers based on their abstracts that might be useful for the given patient profile.\n"
         "2) **Insights** — bullets about potentially relevant considerations (tests, risks, confounders, options),\n"
         "   clearly distinguishing evidence-based statements from general clinical considerations.\n"
         "Do **not** provide medical advice or a definitive diagnosis. Cite references using [#], where # corresponds to the numbering in the REFERENCES list below.\n"
